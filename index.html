@@ -1,0 +1,941 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#eceff3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10131a" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ぐるっと">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+  html { -webkit-text-size-adjust: 100%; overscroll-behavior: none; }
+  :root {
+    color-scheme: light;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  body { margin: 0; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+</style>
+<title>ぐるっとルーレット</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
+<style>
+  /* 構成: 縦一列。ホイールを主役にして、操作と設定は下に静かに置く */
+  :root {
+    --bg: #eceff3;
+    --surface: #ffffff;
+    --ink: #18202c;
+    --muted: #5b6676;
+    --line: #d2d8e0;
+    --btn-bg: #1b2a47;
+    --btn-fg: #ffffff;
+    --rim: #1b2a47;
+    --pointer: #e0483a;
+    --hub: #ffffff;
+    --shadow: 0 1px 2px rgba(20, 30, 50, .08), 0 8px 24px rgba(20, 30, 50, .08);
+    --font-display: "Dela Gothic One", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    --font-body: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10131a; --surface: #1a1f2a; --ink: #e8ecf3; --muted: #9ba6b7; --line: #2c3442;
+      --btn-bg: #e8ecf3; --btn-fg: #10131a; --rim: #e8ecf3; --hub: #1a1f2a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10131a; --surface: #1a1f2a; --ink: #e8ecf3; --muted: #9ba6b7; --line: #2c3442;
+    --btn-bg: #e8ecf3; --btn-fg: #10131a; --rim: #e8ecf3; --hub: #1a1f2a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  button, input { font-family: inherit; font-size: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--pointer); outline-offset: 2px; }
+
+  .app {
+    max-width: 520px;
+    margin-inline: auto;
+    padding-inline: 16px;
+    padding-block: 24px 48px;
+    display: grid;
+    gap: 20px;
+  }
+
+  header { display: grid; gap: 6px; }
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 26px;
+    line-height: 1.25;
+    letter-spacing: .02em;
+    text-wrap: balance;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
+  .topic {
+    width: 100%;
+    border: 0;
+    border-bottom: 2px solid var(--line);
+    background: transparent;
+    padding: 6px 0;
+    font-size: 19px;
+    font-weight: 700;
+    border-radius: 0;
+  }
+  .topic:focus { border-bottom-color: var(--ink); outline: none; }
+  .topic::placeholder { color: var(--muted); font-weight: 500; }
+
+  .stage {
+    position: relative;
+    width: min(100%, 440px);
+    margin-inline: auto;
+    aspect-ratio: 1;
+    margin-top: 14px;
+  }
+  #wheel {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    filter: drop-shadow(0 10px 16px rgba(10, 20, 40, .22));
+  }
+  .pointer {
+    position: absolute;
+    left: 50%;
+    top: -16px;
+    width: 34px;
+    height: 44px;
+    margin-left: -17px;
+    transform-origin: 50% 30%;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .3));
+  }
+  .hub {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 19%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 4px solid var(--rim);
+    background: var(--hub);
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: clamp(11px, 3.2vw, 15px);
+    padding: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
+  }
+  .hub:active { transform: translate(-50%, -50%) scale(.95); }
+
+  .spin {
+    width: 100%;
+    padding: 16px 20px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--btn-bg);
+    color: var(--btn-fg);
+    font-family: var(--font-display);
+    font-size: 20px;
+    letter-spacing: .12em;
+    box-shadow: var(--shadow);
+    transition: transform .08s ease, opacity .2s ease;
+  }
+  .spin:active:not(:disabled) { transform: scale(.985); }
+  .spin:disabled { opacity: .45; cursor: default; }
+
+  .result {
+    display: grid;
+    gap: 2px;
+    min-height: 92px;
+    align-content: center;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+  .label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    color: var(--muted);
+  }
+  .result-value {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    font-family: var(--font-display);
+    font-size: 30px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .result-value.idle {
+    font-family: var(--font-body);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .dot { flex: none; width: 18px; height: 18px; border-radius: 50%; }
+  .pop { animation: pop .45s cubic-bezier(.2, 1.4, .4, 1); }
+  @keyframes pop { from { transform: scale(.8); opacity: .2; } to { transform: scale(1); opacity: 1; } }
+
+  .history { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 28px; }
+  .history .label { margin-right: 4px; }
+  .chip {
+    min-width: 0;
+    max-width: 100%;
+    padding: 3px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 13px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+
+  .editor {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+  .editor summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 14px 18px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .editor summary::-webkit-details-marker { display: none; }
+  .editor summary span { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .editor-body { padding: 0 18px 18px; display: grid; gap: 10px; }
+  .rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row .swatch { flex: none; width: 12px; height: 12px; border-radius: 50%; }
+  .field {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+  }
+  .field:focus { outline: none; border-color: var(--ink); }
+  .small-btn {
+    flex: none;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: transparent;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .small-btn:disabled { opacity: .35; cursor: default; }
+  .hint { margin: 0; font-size: 13px; color: var(--muted); }
+  .field.weight { flex: none; width: 64px; padding: 9px 6px; text-align: center; font-variant-numeric: tabular-nums; }
+  .pct {
+    flex: none;
+    width: 3em;
+    text-align: right;
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .add { display: flex; gap: 8px; }
+  .ghost {
+    justify-self: start;
+    padding: 6px 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(8, 12, 20, .55);
+  }
+  .sheet-panel {
+    width: min(100%, 520px);
+    max-height: 88%;
+    overflow-y: auto;
+    padding: 18px 16px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    border-radius: 18px 18px 0 0;
+    background: var(--surface);
+    color: var(--ink);
+    display: grid;
+    gap: 12px;
+  }
+  .sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .sheet h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 19px; }
+  .sheet h3 { margin: 4px 0 0; font-size: 13px; letter-spacing: .1em; color: var(--muted); }
+  .status { margin: 0; font-size: 13px; color: var(--muted); }
+  .picks { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pick {
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .pick:active { transform: scale(.97); }
+  .queue { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .queue li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 6px 6px 12px;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+  }
+  .queue .no { flex: none; width: 1.6em; font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 700; }
+  .queue .name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
+  .queue-empty { margin: 0; font-size: 13px; color: var(--muted); }
+  .check { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .check input { width: 18px; height: 18px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pop { animation: none; }
+    .spin { transition: none; }
+  }
+</style>
+<style>
+  /* iPhoneは16px未満の入力欄に触れると画面が拡大されるため */
+  .field, .topic { font-size: 16px; }
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <header>
+    <h1 id="title">ぐるっとルーレット</h1>
+    <input id="topicInput" class="topic" type="text" maxlength="40" aria-label="お題" placeholder="お題を入力">
+  </header>
+
+  <section class="stage" id="stage">
+    <canvas id="wheel" role="img" aria-label="ルーレット"></canvas>
+    <svg class="pointer" id="pointer" viewBox="0 0 40 52" aria-hidden="true">
+      <path d="M20 50 L6 22 A15 15 0 1 1 34 22 Z" fill="var(--pointer)" stroke="var(--surface)" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="20" cy="16.6" r="5" fill="var(--surface)"/>
+    </svg>
+    <button class="hub" id="hub" type="button" tabindex="-1" aria-hidden="true">回す</button>
+  </section>
+
+  <button class="spin" id="spinBtn" type="button">回す</button>
+
+  <section class="result" id="result" aria-live="polite">
+    <span class="label">結果</span>
+    <div class="result-value idle" id="resultValue">回すと、ここに結果が出ます</div>
+  </section>
+
+  <div class="history" id="history"></div>
+
+  <details class="editor" id="editor">
+    <summary>項目を編集 <span id="countLabel"></span></summary>
+    <div class="editor-body">
+      <p class="hint">右の数字が割合です。大きいほどホイール上で広くなり、出やすくなります。</p>
+      <ul class="rows" id="rows"></ul>
+      <form class="add" id="addForm">
+        <input id="addInput" class="field" type="text" maxlength="24" placeholder="項目を追加" aria-label="追加する項目">
+        <button class="small-btn" id="addBtn" type="submit">追加</button>
+      </form>
+      <button class="ghost" id="equalize" type="button">割合をすべて同じにする</button>
+      <button class="ghost" id="clearHistory" type="button">履歴を消す</button>
+    </div>
+  </details>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-panel" role="dialog" aria-label="こっそり設定">
+    <div class="sheet-head">
+      <h2>こっそり設定</h2>
+      <button class="small-btn" id="sheetClose" type="button">閉じる</button>
+    </div>
+    <p class="status" id="sheetStatus"></p>
+    <h3>次に出したい結果をタップ</h3>
+    <div class="picks" id="pickChips"></div>
+    <h3>出る順番</h3>
+    <ol class="queue" id="queueList"></ol>
+    <p class="queue-empty" id="queueEmpty">まだ指定していません。</p>
+    <label class="check"><input type="checkbox" id="repeatChk"> 最後の指定を毎回くり返す</label>
+    <label class="check"><input type="checkbox" id="muteChk"> 効果音を消す</label>
+    <button class="ghost" id="clearQueue" type="button">指定をすべて解除</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var KEY = 'guruttoRoulette.v1';
+  var COLORS = ['#2f5d8a', '#c4453a', '#2f8f6b', '#b0700d', '#6b4c9a', '#1f7f8e', '#b8456f', '#566170'];
+  var MAX_ITEMS = 12;
+  var DEFAULTS = {
+    topic: '今日のランチは？',
+    items: ['ラーメン', 'カレー', '寿司', '焼肉', 'パスタ', 'うどん'],
+    weights: [1, 1, 1, 1, 1, 1],
+    queue: [],
+    repeat: false,
+    mute: false,
+    history: []
+  };
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function sanitize(o) {
+    var s = Object.assign(clone(DEFAULTS), o || {});
+    var rawItems = Array.isArray(s.items) ? s.items : [];
+    var rawW = Array.isArray(o && o.weights) ? o.weights : [];
+    var items = [], weights = [];
+    rawItems.forEach(function (x, i) {
+      var label = String(x).slice(0, 24);
+      if (!label.trim() || items.length >= MAX_ITEMS) return;
+      var w = Math.round(Number(rawW[i]));
+      items.push(label);
+      weights.push(w >= 1 ? Math.min(99, w) : 1);
+    });
+    if (items.length < 2) { items = clone(DEFAULTS.items); weights = clone(DEFAULTS.weights); }
+    s.items = items;
+    s.weights = weights;
+    s.queue = Array.isArray(s.queue) ? s.queue.map(String).slice(0, 30) : [];
+    s.history = Array.isArray(s.history) ? s.history.map(String).slice(0, 8) : [];
+    s.topic = String(s.topic == null ? '' : s.topic).slice(0, 40);
+    s.repeat = !!s.repeat;
+    s.mute = !!s.mute;
+    return s;
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) return sanitize(JSON.parse(raw));
+    } catch (e) {}
+    return sanitize(null);
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  var state = load();
+
+  var $ = function (id) { return document.getElementById(id); };
+  var canvas = $('wheel'), ctx = canvas.getContext('2d');
+  var pointer = $('pointer');
+  var spinBtn = $('spinBtn'), hub = $('hub');
+  var resultValue = $('resultValue');
+  var reduced = false;
+  try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+  var rot = 0;            // 現在の回転角（度・時計回り）
+  var spinning = false;
+  var highlight = -1;
+  var kick = 0;
+
+  function colorFor(i, n) {
+    var c = i % COLORS.length;
+    if (i === n - 1 && c === 0 && n > 1) c = 4;
+    return COLORS[c];
+  }
+
+  // 各項目が占める角度の範囲（度）。割合に比例する
+  function spans() {
+    var total = state.weights.reduce(function (a, b) { return a + b; }, 0);
+    var acc = 0;
+    return state.items.map(function (_, i) {
+      var s = acc;
+      acc += state.weights[i] / total * 360;
+      return [s, acc];
+    });
+  }
+
+  /* ---------- 描画 ---------- */
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  function fit(text, maxW) {
+    if (ctx.measureText(text).width <= maxW) return text;
+    var t = text;
+    while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+    return t + '…';
+  }
+
+  function draw() {
+    var size = canvas.clientWidth;
+    if (!size) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 3);
+    var px = Math.round(size * dpr);
+    if (canvas.width !== px) { canvas.width = px; canvas.height = px; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+
+    var items = state.items, n = items.length;
+    var cx = size / 2, cy = size / 2;
+    var outer = size / 2 - 3;
+    var rimW = Math.max(8, size * 0.026);
+    var r = outer - rimW;
+    var sp = spans();
+    var rimColor = cssVar('--rim', '#1b2a47');
+    var surface = cssVar('--surface', '#ffffff');
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, outer, 0, Math.PI * 2);
+    ctx.fillStyle = rimColor;
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot * Math.PI / 180);
+
+    var fs = size * 0.058;
+    if (n > 8) fs *= 0.88;
+    if (n > 10) fs *= 0.9;
+    var fontFor = function (px) {
+      return '700 ' + px.toFixed(1) + 'px "Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif';
+    };
+    ctx.textBaseline = 'middle';
+
+    for (var i = 0; i < n; i++) {
+      var a0 = -Math.PI / 2 + sp[i][0] * Math.PI / 180;
+      var a1 = -Math.PI / 2 + sp[i][1] * Math.PI / 180;
+      var seg = a1 - a0;
+      var dim = highlight >= 0 && highlight !== i;
+      ctx.globalAlpha = dim ? 0.35 : 1;
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, r, a0, a1);
+      ctx.closePath();
+      ctx.fillStyle = colorFor(i, n);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,.85)';
+      ctx.stroke();
+
+      ctx.save();
+      ctx.rotate(a0 + seg / 2);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = fontFor(Math.min(fs, Math.max(8, r * 0.7 * seg * 0.8)));
+      var label = fit(items[i], r * 0.62);
+      ctx.fillText(label, r - size * 0.045, 0);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+
+    var studR = outer - rimW / 2;
+    for (var k = 0; k < n; k++) {
+      var ang = -Math.PI / 2 + sp[k][0] * Math.PI / 180;
+      ctx.beginPath();
+      ctx.arc(Math.cos(ang) * studR, Math.sin(ang) * studR, Math.max(2, rimW * 0.22), 0, Math.PI * 2);
+      ctx.fillStyle = surface;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* ---------- 音 ---------- */
+  var ac = null;
+  function ensureAudio() {
+    if (!ac) {
+      try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; }
+    }
+    if (ac && ac.state === 'suspended') { try { ac.resume(); } catch (e) {} }
+  }
+  function tone(freq, endFreq, dur, vol, type, delay) {
+    if (!ac || state.mute) return;
+    try {
+      var t = ac.currentTime + (delay || 0);
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = type || 'triangle';
+      o.frequency.setValueAtTime(freq, t);
+      if (endFreq) o.frequency.exponentialRampToValueAtTime(endFreq, t + dur * 0.6);
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    } catch (e) {}
+  }
+  function tick() { tone(1500, 700, 0.05, 0.05, 'triangle'); }
+  function chime() {
+    tone(660, 0, 0.35, 0.07, 'sine', 0);
+    tone(880, 0, 0.5, 0.07, 'sine', 0.12);
+  }
+
+  /* ---------- 結果の決定 ---------- */
+  function pickTarget() {
+    while (state.queue.length) {
+      var idx = state.items.indexOf(state.queue[0]);
+      if (idx < 0) { state.queue.shift(); continue; }
+      if (!(state.repeat && state.queue.length === 1)) state.queue.shift();
+      save();
+      renderSheet();
+      return idx;
+    }
+    // 通常のランダムは割合に応じた確率で選ぶ
+    var total = state.weights.reduce(function (a, b) { return a + b; }, 0);
+    var pick = Math.random() * total;
+    for (var j = 0; j < state.weights.length; j++) {
+      pick -= state.weights[j];
+      if (pick < 0) return j;
+    }
+    return state.weights.length - 1;
+  }
+
+  function segIndexAt(angle) {
+    var m = (((-angle) % 360) + 360) % 360;
+    var sp = spans();
+    for (var i = 0; i < sp.length; i++) {
+      if (m >= sp[i][0] && m < sp[i][1]) return i;
+    }
+    return sp.length - 1;
+  }
+
+  function spin() {
+    if (spinning || state.items.length < 2) return;
+    ensureAudio();
+    spinning = true;
+    highlight = -1;
+    spinBtn.disabled = true;
+    hub.disabled = true;
+    $('editor').inert = true;
+    setResult(null);
+
+    var target = pickTarget();
+    var span = spans()[target];
+    var offset = span[0] + (span[1] - span[0]) * (0.14 + Math.random() * 0.72);
+    var want = (((360 - offset) % 360) + 360) % 360;
+    var cur = ((rot % 360) + 360) % 360;
+    var delta = (((want - cur) + 360) % 360) + 360 * (5 + Math.floor(Math.random() * 3));
+    var from = rot, to = rot + delta;
+    var dur = reduced ? 1200 : 4800 + Math.random() * 1600;
+    var start = null;
+    var lastSeg = segIndexAt(from);
+
+    function frame(now) {
+      if (start === null) start = now;
+      var t = Math.min(1, (now - start) / dur);
+      var e = 1 - Math.pow(1 - t, 4);
+      rot = from + (to - from) * e;
+
+      var s = segIndexAt(rot);
+      if (s !== lastSeg) { lastSeg = s; kick = 1; tick(); }
+      pointer.style.transform = 'rotate(' + (-kick * 18).toFixed(2) + 'deg)';
+      kick *= 0.8;
+
+      draw();
+      if (t < 1) { requestAnimationFrame(frame); return; }
+      finish(to);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function finish(finalRot) {
+    rot = ((finalRot % 360) + 360) % 360;
+    pointer.style.transform = '';
+    var idx = segIndexAt(rot);
+    highlight = idx;
+    draw();
+    var label = state.items[idx];
+    setResult(label, colorFor(idx, state.items.length));
+    state.history.unshift(label);
+    state.history = state.history.slice(0, 8);
+    save();
+    renderHistory();
+    chime();
+    spinning = false;
+    spinBtn.disabled = false;
+    hub.disabled = false;
+    $('editor').inert = false;
+  }
+
+  function setResult(label, color) {
+    resultValue.className = 'result-value';
+    resultValue.textContent = '';
+    if (label === null) {
+      resultValue.className = 'result-value idle';
+      resultValue.textContent = '回転中…';
+      return;
+    }
+    var dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = color;
+    var txt = document.createElement('span');
+    txt.textContent = label;
+    resultValue.appendChild(dot);
+    resultValue.appendChild(txt);
+    resultValue.classList.add('pop');
+  }
+
+  /* ---------- 履歴 ---------- */
+  function renderHistory() {
+    var box = $('history');
+    box.textContent = '';
+    if (!state.history.length) return;
+    var l = document.createElement('span');
+    l.className = 'label';
+    l.textContent = '履歴';
+    box.appendChild(l);
+    state.history.forEach(function (h) {
+      var c = document.createElement('span');
+      c.className = 'chip';
+      c.textContent = h;
+      box.appendChild(c);
+    });
+  }
+
+  /* ---------- 項目の編集 ---------- */
+  var pctEls = [];
+  function updatePct() {
+    var total = state.weights.reduce(function (a, b) { return a + b; }, 0);
+    pctEls.forEach(function (el, i) {
+      el.textContent = Math.round(state.weights[i] / total * 100) + '%';
+    });
+  }
+
+  function renderItems() {
+    var rows = $('rows');
+    rows.textContent = '';
+    var n = state.items.length;
+    pctEls = [];
+    state.items.forEach(function (label, i) {
+      var li = document.createElement('li');
+      li.className = 'row';
+      var sw = document.createElement('span');
+      sw.className = 'swatch';
+      sw.style.background = colorFor(i, n);
+      var inp = document.createElement('input');
+      inp.className = 'field';
+      inp.type = 'text';
+      inp.maxLength = 24;
+      inp.value = label;
+      inp.id = 'item-' + i;
+      inp.setAttribute('aria-label', '項目 ' + (i + 1));
+      inp.addEventListener('input', function () {
+        state.items[i] = inp.value;
+        save();
+        highlight = -1;
+        draw();
+        if (!$('sheet').hidden) renderSheet();
+      });
+      inp.addEventListener('change', function () {
+        if (!inp.value.trim()) {
+          if (state.items.length > 2) { state.items.splice(i, 1); state.weights.splice(i, 1); }
+          else { state.items[i] = DEFAULTS.items[i] || '項目'; }
+          save(); highlight = -1; renderItems(); draw();
+        }
+      });
+      var wi = document.createElement('input');
+      wi.className = 'field weight';
+      wi.type = 'number';
+      wi.inputMode = 'numeric';
+      wi.min = '1';
+      wi.max = '99';
+      wi.step = '1';
+      wi.value = String(state.weights[i]);
+      wi.id = 'weight-' + i;
+      wi.setAttribute('aria-label', '項目 ' + (i + 1) + ' の割合');
+      wi.addEventListener('input', function () {
+        var v = Math.round(Number(wi.value));
+        if (!(v >= 1)) return;
+        state.weights[i] = Math.min(99, v);
+        save(); highlight = -1; draw(); updatePct();
+      });
+      wi.addEventListener('change', function () {
+        wi.value = String(state.weights[i]);
+      });
+      var pct = document.createElement('span');
+      pct.className = 'pct';
+      pctEls.push(pct);
+      var rm = document.createElement('button');
+      rm.className = 'small-btn';
+      rm.type = 'button';
+      rm.textContent = '削除';
+      rm.disabled = n <= 2;
+      rm.addEventListener('click', function () {
+        if (spinning || state.items.length <= 2) return;
+        state.items.splice(i, 1);
+        state.weights.splice(i, 1);
+        save(); highlight = -1; renderItems(); draw();
+      });
+      li.appendChild(sw); li.appendChild(inp); li.appendChild(wi); li.appendChild(pct); li.appendChild(rm);
+      rows.appendChild(li);
+    });
+    $('countLabel').textContent = n + ' 項目';
+    updatePct();
+    $('addInput').disabled = n >= MAX_ITEMS;
+    $('addBtn').disabled = n >= MAX_ITEMS;
+    $('addInput').placeholder = n >= MAX_ITEMS ? '最大 ' + MAX_ITEMS + ' 項目までです' : '項目を追加';
+  }
+
+  $('addForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = $('addInput').value.trim();
+    if (!v || state.items.length >= MAX_ITEMS || spinning) return;
+    state.items.push(v.slice(0, 24));
+    state.weights.push(1);
+    $('addInput').value = '';
+    save(); highlight = -1; renderItems(); draw();
+  });
+
+  $('equalize').addEventListener('click', function () {
+    state.weights = state.items.map(function () { return 1; });
+    save(); highlight = -1; renderItems(); draw();
+  });
+
+  $('clearHistory').addEventListener('click', function () {
+    state.history = [];
+    save(); renderHistory();
+  });
+
+  $('topicInput').value = state.topic;
+  $('topicInput').addEventListener('input', function () {
+    state.topic = $('topicInput').value;
+    save();
+  });
+
+  /* ---------- こっそり設定（タイトル長押しで開く） ---------- */
+  function openSheet() {
+    renderSheet();
+    $('sheet').hidden = false;
+  }
+  function closeSheet() { $('sheet').hidden = true; }
+
+  function renderSheet() {
+    var picks = $('pickChips');
+    picks.textContent = '';
+    state.items.forEach(function (label) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pick';
+      b.textContent = '＋ ' + label;
+      b.addEventListener('click', function () {
+        if (state.queue.length >= 30) return;
+        state.queue.push(label);
+        save(); renderSheet();
+      });
+      picks.appendChild(b);
+    });
+
+    var list = $('queueList');
+    list.textContent = '';
+    state.queue.forEach(function (label, i) {
+      var li = document.createElement('li');
+      var no = document.createElement('span');
+      no.className = 'no';
+      no.textContent = String(i + 1);
+      var nm = document.createElement('span');
+      nm.className = 'name';
+      nm.textContent = label;
+      var rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'small-btn';
+      rm.textContent = '外す';
+      rm.addEventListener('click', function () {
+        state.queue.splice(i, 1);
+        save(); renderSheet();
+      });
+      li.appendChild(no); li.appendChild(nm); li.appendChild(rm);
+      list.appendChild(li);
+    });
+    $('queueEmpty').hidden = state.queue.length > 0;
+    $('repeatChk').checked = state.repeat;
+    $('muteChk').checked = state.mute;
+
+    var st = $('sheetStatus');
+    if (!state.queue.length) st.textContent = '指定なし。いまは完全なランダムです。';
+    else if (state.repeat) st.textContent = '指定 ' + state.queue.length + ' 件。最後の指定は毎回くり返します。';
+    else st.textContent = '指定 ' + state.queue.length + ' 件。使い切ると通常のランダムに戻ります。';
+  }
+
+  $('repeatChk').addEventListener('change', function () {
+    state.repeat = $('repeatChk').checked; save(); renderSheet();
+  });
+  $('muteChk').addEventListener('change', function () {
+    state.mute = $('muteChk').checked; save();
+  });
+  $('clearQueue').addEventListener('click', function () {
+    state.queue = []; save(); renderSheet();
+  });
+  $('sheetClose').addEventListener('click', closeSheet);
+  $('sheet').addEventListener('click', function (e) {
+    if (e.target === $('sheet')) closeSheet();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('sheet').hidden) closeSheet();
+  });
+
+  var pressTimer = null;
+  var title = $('title');
+  function startPress() {
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(function () { pressTimer = null; openSheet(); }, 700);
+  }
+  function cancelPress() { clearTimeout(pressTimer); pressTimer = null; }
+  title.addEventListener('pointerdown', startPress);
+  title.addEventListener('pointerup', cancelPress);
+  title.addEventListener('pointerleave', cancelPress);
+  title.addEventListener('pointercancel', cancelPress);
+  title.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  /* ---------- 操作 ---------- */
+  spinBtn.addEventListener('click', spin);
+  hub.addEventListener('click', spin);
+
+  /* ---------- 初期化 ---------- */
+  renderItems();
+  renderHistory();
+  draw();
+
+  window.addEventListener('resize', draw);
+  try { new ResizeObserver(draw).observe($('stage')); } catch (e) {}
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw); } catch (e) {}
+  try { new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load('700 20px "Zen Kaku Gothic New"').then(draw, function () {});
+    document.fonts.ready.then(draw, function () {});
+  }
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
